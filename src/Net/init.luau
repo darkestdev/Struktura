@@ -3,6 +3,7 @@
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
+local Players = game:GetService("Players")
 local Packages = ReplicatedStorage:WaitForChild("Packages")
 
 local Promise = require(Packages:WaitForChild("Promise")) :: any
@@ -15,7 +16,8 @@ local Generated = if isServer
 	then require(script:WaitForChild("Server")) :: any
 	else require(script:WaitForChild("Client")) :: any
 
-export type Target = Player | {Player} | "All" | { Except: Player }
+export type PlayerName = string
+export type Target = Player | PlayerName | {PlayerName} | "All" | { Except: PlayerName }
 export type Route = string
 
 local Net = {}
@@ -74,6 +76,25 @@ function Net:On(route: Route, callback: (...any) -> ())
 	end
 end
 
+local function resolvePlayer(name: string): Player?
+	local p = Players:FindFirstChild(name)
+	if p and p:IsA("Player") then
+		return p
+	end
+	return nil
+end
+
+local function resolveList(names: {string}): {Player}
+	local out = {}
+	for _, n in ipairs(names) do
+		local p = resolvePlayer(n)
+		if p then
+			table.insert(out, p)
+		end
+	end
+	return out
+end
+
 function Net:Fire(target: Target?, route: Route, ...)
 	local netName, eventName = splitRoute(route)
 	local payload = packPayload(...)
@@ -91,17 +112,32 @@ function Net:Fire(target: Target?, route: Route, ...)
 		end
 
 		if typeof(target) == "Instance" then
-			Generated.ClientEvent.Fire(target, pkt)
+			Generated.ClientEvent.Fire(target :: Player, pkt)
+			return
+		end
+
+		if type(target) == "string" then
+			local p = resolvePlayer(target)
+			if p then
+				Generated.ClientEvent.Fire(p, pkt)
+			end
 			return
 		end
 
 		if type(target) == "table" then
-			if (target :: any).Except ~= nil then
-				Generated.ClientEvent.FireExcept((target :: any).Except, pkt)
+			local exceptName = (target :: any).Except
+			if type(exceptName) == "string" then
+				local p = resolvePlayer(exceptName)
+				if p then
+					Generated.ClientEvent.FireExcept(p, pkt)
+				end
 				return
 			end
 
-			Generated.ClientEvent.FireList(target :: {Player}, pkt)
+			local list = resolveList(target :: {string})
+			if #list > 0 then
+				Generated.ClientEvent.FireList(list, pkt)
+			end
 			return
 		end
 

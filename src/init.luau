@@ -17,10 +17,10 @@ export type Disconnect = () -> ()
 export type ClientMeta = { Signals: {string}, Methods: {string} }
 export type ClientSignal = { Connect: (self: ClientSignal, callback: (...any) -> ()) -> Disconnect }
 export type ServerSignal = {
-	Fire: (self: ServerSignal, target: Player | {Player} | "All" | { Except: Player } | nil, ...any) -> (),
+	Fire: (self: ServerSignal, target: Player | string | {string} | "All" | { Except: string } | nil, ...any) -> (),
 	FireAll: (self: ServerSignal, ...any) -> (),
-	FireList: (self: ServerSignal, list: {Player}, ...any) -> (),
-	FireExcept: (self: ServerSignal, except: Player, ...any) -> (),
+	FireList: (self: ServerSignal, list: {string}, ...any) -> (),
+	FireExcept: (self: ServerSignal, except: string, ...any) -> (),
 }
 export type ServiceProxy = { [string]: any }
 
@@ -191,11 +191,11 @@ local function createServerSignal(route: string): ServerSignal
 		Struktura.Net:Fire("All", route, ...)
 	end
 
-	function obj:FireList(list: {Player}, ...)
+	function obj:FireList(list: {string}, ...)
 		Struktura.Net:Fire(list, route, ...)
 	end
 
-	function obj:FireExcept(except: Player, ...)
+	function obj:FireExcept(except: string, ...)
 		Struktura.Net:Fire({ Except = except }, route, ...)
 	end
 
@@ -232,7 +232,7 @@ local function setupClientSurface()
 	end
 end
 
-local playerCharConn: {[Player]: RBXScriptConnection} = {}
+local playerCharConn: {[string]: RBXScriptConnection} = {}
 
 local function onCharacterAdded(player: Player, character: Model)
 	if characterAddedSignal then
@@ -245,12 +245,15 @@ local function onPlayerAdded(player: Player)
 		playerAddedSignal:Fire(player)
 	end
 
-	if playerCharConn[player] then
-		playerCharConn[player]:Disconnect()
-		playerCharConn[player] = nil
+	local key = player.Name
+
+	local existing = playerCharConn[key]
+	if existing then
+		existing:Disconnect()
+		playerCharConn[key] = nil
 	end
 
-	playerCharConn[player] = player.CharacterAdded:Connect(function(character: Model)
+	playerCharConn[key] = player.CharacterAdded:Connect(function(character: Model)
 		onCharacterAdded(player, character)
 	end)
 
@@ -264,10 +267,11 @@ local function onPlayerRemoving(player: Player)
 		playerRemovingSignal:Fire(player)
 	end
 
-	local conn = playerCharConn[player]
+	local key = player.Name
+	local conn = playerCharConn[key]
 	if conn then
 		conn:Disconnect()
-		playerCharConn[player] = nil
+		playerCharConn[key] = nil
 	end
 end
 
