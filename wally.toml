@@ -1,0 +1,11 @@
+[package]
+name = "darkestdev/struktura"
+description = "Luau strict-typed Framework (ft. Blink, VoidSentry, LemonSignal)"
+version = "1.0.0"
+registry = "https://github.com/UpliftGames/wally-index"
+realm = "shared"
+
+[dependencies]
+Promise = "evaera/promise@^4"
+VoidSentry = "elentium/voidsentry@0.0.7"
+LemonSignal = "data-oriented-house/lemonsignal@1.11.0"

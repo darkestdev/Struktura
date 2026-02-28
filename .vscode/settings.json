@@ -1,0 +1,7 @@
+{
+    "[luau]": {
+        "editor.defaultFormatter": "JohnnyMorganz.luau-lsp",
+        "editor.formatOnSave": true,
+        "editor.tabSize": 4
+    },
+}
