@@ -31,10 +31,12 @@ local isStudio = RunService:IsStudio()
 local cleaner = Trove.new()
 
 local started = false
-local modules: {[string]: any} = {}
-local serviceCache: {[string]: ServiceProxy} = {}
-
 local signalFlag = newproxy(false)
+
+local controllers: {[string]: any} = {}
+local controllerCache: {[string]: any} = {}
+local serviceCache: {[string]: ServiceProxy} = {}
+local modules: {[string]: any} = {}
 
 local bindToCloseSignal = if isServer then LemonSignal.new() else nil
 local playerAddedSignal = if isServer then LemonSignal.new() else nil
@@ -58,12 +60,16 @@ local function feed(moduleScript: ModuleScript): Success
 		return false
 	end
 
-	local key: string = moduleScript.Name
 	local ok, loaded = pcall(require, moduleScript)
+	local key = (loaded.Name or moduleScript.Name)
 
 	if ok then
 		if typeof(loaded) == "table" then
-			modules[key] = loaded
+			if loaded.Type == "Controller" then
+				controllers[key] = loaded
+			else
+				modules[key] = loaded -- treat as Service by default
+			end
 		else
 			if isStudio then
 				warn(`[Struktura] {key} Module does not return a table. This has not been fed.`)
@@ -272,6 +278,31 @@ local function onPlayerRemoving(player: Player)
 		conn:Disconnect()
 		playerCharConn[key] = nil
 	end
+end
+
+function Struktura.GetController(name: string)
+	if isServer then
+		if isStudio then
+			warn("[Struktura] GetController can only be called on the client.")
+		end
+		return nil
+	end
+
+	local cached = controllerCache[name]
+	if cached then
+		return cached
+	end
+
+	local ctrl = controllers[name]
+	if not ctrl then
+		if isStudio then
+			warn(("[Struktura] Controller '%s' not found. Did you Initialize() controllers?"):format(name))
+		end
+		return nil
+	end
+
+	controllerCache[name] = ctrl
+	return ctrl
 end
 
 function Struktura.GetService(name: string): any
