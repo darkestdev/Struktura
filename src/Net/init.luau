@@ -17,20 +17,14 @@ local Generated = if isServer
 
 export type PlayerName = string
 export type Target = Player | PlayerName | {PlayerName} | "All" | { Except: PlayerName }
-export type Route = string
+
+export type NetName = string
+export type EventName = string
 
 local Net = {}
 
-local listeners: {[string]: {(...any) -> ()}} = {}
-local handlers: {[string]: (Player, ...any) -> ...any} = {}
-
-local function splitRoute(route: string): (string, string)
-	local a, b = route:match("^(.-)%.(.+)$")
-	if a and b then
-		return a, b
-	end
-	return route, ""
-end
+local listeners: {[NetName]: {[EventName]: {(...any) -> ()}}} = {}
+local handlers: {[NetName]: {[EventName]: (Player, ...any) -> ...any}} = {}
 
 local function packPayload(...): buffer
 	return Dynamic.serialize(nil, nil, ...)
@@ -43,8 +37,12 @@ local function unpackPayload(payload: buffer?): ...any
 	return Dynamic.deserialize(nil, nil, payload)
 end
 
-local function dispatch(route: string, ...)
-	local list = listeners[route]
+local function dispatch(netName: string, eventName: string, ...)
+	local byNet = listeners[netName]
+	if not byNet then
+		return
+	end
+	local list = byNet[eventName]
 	if not list then
 		return
 	end
@@ -53,16 +51,27 @@ local function dispatch(route: string, ...)
 	end
 end
 
-function Net:On(route: Route, callback: (...any) -> ())
-	local list = listeners[route]
+function Net:On(netName: NetName, eventName: EventName, callback: (...any) -> ())
+	local byNet = listeners[netName]
+	if not byNet then
+		byNet = {}
+		listeners[netName] = byNet
+	end
+
+	local list = byNet[eventName]
 	if not list then
 		list = {}
-		listeners[route] = list
+		byNet[eventName] = list
 	end
+
 	table.insert(list, callback)
 
 	return function()
-		local l = listeners[route]
+		local n = listeners[netName]
+		if not n then
+			return
+		end
+		local l = n[eventName]
 		if not l then
 			return
 		end
@@ -94,8 +103,7 @@ local function resolveList(names: {string}): {Player}
 	return out
 end
 
-function Net:Fire(target: Target?, route: Route, ...)
-	local netName, eventName = splitRoute(route)
+function Net:Fire(target: Target?, netName: NetName, eventName: EventName, ...)
 	local payload = packPayload(...)
 
 	local pkt = {
@@ -146,16 +154,20 @@ function Net:Fire(target: Target?, route: Route, ...)
 	end
 end
 
-function Net:Handle(route: Route, handler: (Player, ...any) -> ...any)
-	handlers[route] = handler
+function Net:Handle(netName: NetName, eventName: EventName, handler: (Player, ...any) -> ...any)
+	local byNet = handlers[netName]
+	if not byNet then
+		byNet = {}
+		handlers[netName] = byNet
+	end
+	byNet[eventName] = handler
 end
 
-function Net:Request(route: Route, ...)
+function Net:Request(netName: NetName, eventName: EventName, ...)
 	if isServer then
 		error("[Struktura.Net] Request can only be called on the client")
 	end
 
-	local netName, eventName = splitRoute(route)
 	local payload = packPayload(...)
 
 	local pkt = {
@@ -179,13 +191,15 @@ function Net:_Start()
 			if pkt == nil then
 				return
 			end
-			local route = tostring(pkt.Net) .. "." .. tostring(pkt.Event)
-			dispatch(route, unpackPayload(pkt.Payload))
+			dispatch(tostring(pkt.Net), tostring(pkt.Event), unpackPayload(pkt.Payload))
 		end)
 
 		Generated.RemoteFunction.On(function(player: Player, pkt): buffer?
-			local route = tostring(pkt.Net) .. "." .. tostring(pkt.Event)
-			local handler = handlers[route]
+			local netName = tostring(pkt.Net)
+			local eventName = tostring(pkt.Event)
+
+			local byNet = handlers[netName]
+			local handler = byNet and byNet[eventName]
 			if not handler then
 				return nil
 			end
@@ -195,7 +209,7 @@ function Net:_Start()
 			end)
 
 			if not ok then
-				warn(`[Struktura.Net] Handler error for {route}: {tostring(results)}`)
+				warn(`[Struktura.Net] Handler error for {netName}.{eventName}: {tostring(results)}`)
 				return nil
 			end
 
@@ -206,8 +220,7 @@ function Net:_Start()
 			if pkt == nil then
 				return
 			end
-			local route = tostring(pkt.Net) .. "." .. tostring(pkt.Event)
-			dispatch(route, unpackPayload(pkt.Payload))
+			dispatch(tostring(pkt.Net), tostring(pkt.Event), unpackPayload(pkt.Payload))
 		end)
 	end
 end
