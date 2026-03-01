@@ -1,9 +1,6 @@
 {
-	"name": "Packages",
+	"name": "struktura",
 	"tree": {
-		"$path": "src/Packages",
-		"Knit": {
-			"$path": "src"
-		}
+		"$path": "src"
 	}
 }
