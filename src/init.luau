@@ -1,10 +1,9 @@
 --!strict
 --!optimize 2
 
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 local Players = game:GetService("Players")
-local Packages = ReplicatedStorage:WaitForChild("Packages")
+local Packages = script.Parent :: Folder
 
 local Promise = require(Packages:WaitForChild("Promise")) :: any
 local LemonSignal = require(Packages:WaitForChild("LemonSignal")) :: any

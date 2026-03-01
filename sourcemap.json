@@ -1,0 +1,1 @@
+{"name":"struktura","className":"ModuleScript","filePaths":["src\\init.luau","default.project.json"],"children":[{"name":"Net","className":"ModuleScript","filePaths":["src\\Net\\init.luau"],"children":[{"name":"Client","className":"ModuleScript","filePaths":["src\\Net\\Client.luau"]},{"name":"Server","className":"ModuleScript","filePaths":["src\\Net\\Server.luau"]}]}]}
