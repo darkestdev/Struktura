@@ -4,6 +4,7 @@ description = "Luau strict-typed Framework (ft. Blink, VoidSentry, LemonSignal)"
 version = "1.0.0"
 registry = "https://github.com/UpliftGames/wally-index"
 realm = "shared"
+exclude = ["Def.blink", "rokit.toml", "selene.toml"]
 
 [dependencies]
 Promise = "evaera/promise@^4"
