@@ -21,10 +21,9 @@ export type ServerSignal = {
 	FireList: (self: ServerSignal, list: {string}, ...any) -> (),
 	FireExcept: (self: ServerSignal, except: string, ...any) -> (),
 }
+
 export type ServiceProxy = { [string]: any }
 export type Settings = { ServicePromises: boolean? }
-
-type Success = boolean
 
 local isServer = RunService:IsServer()
 local isStudio = RunService:IsStudio()
@@ -72,7 +71,7 @@ local function ensureNetStarted()
 	Struktura.Net:_Start()
 end
 
-local function feed(moduleScript: ModuleScript): Success
+local function feed(moduleScript: ModuleScript): boolean
 	if started then
 		if isStudio then
 			warn("[Struktura] Cannot feed Modules when already Started.")
@@ -424,6 +423,7 @@ function Struktura.Start()
 
 			started = true
 			starting = false
+			
 			if isServer then
 				script:SetAttribute("ServerReady", true)
 			end
