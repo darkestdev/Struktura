@@ -1,7 +1,7 @@
 [package]
 name = "darkestdev/struktura"
 description = "Luau strict-typed Framework (ft. Blink, VoidSentry, LemonSignal)"
-version = "1.0.2"
+version = "1.0.5"
 registry = "https://github.com/UpliftGames/wally-index"
 realm = "shared"
 exclude = ["Def.blink", "rokit.toml", "selene.toml"]
@@ -10,3 +10,4 @@ exclude = ["Def.blink", "rokit.toml", "selene.toml"]
 Promise = "evaera/promise@^4"
 VoidSentry = "elentium/voidsentry@0.0.7"
 LemonSignal = "data-oriented-house/lemonsignal@1.11.0"
+Trove = "sleitnick/trove@^1"

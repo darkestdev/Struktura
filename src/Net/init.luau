@@ -3,8 +3,8 @@
 
 local RunService = game:GetService("RunService")
 local Players = game:GetService("Players")
-local Packages = script.Parent :: Folder
 
+local Packages = script.Parent.Parent
 local Promise = require(Packages:WaitForChild("Promise")) :: any
 local VoidSentry = require(Packages:WaitForChild("VoidSentry")) :: any
 local Dynamic = VoidSentry.Dynamic
@@ -17,9 +17,9 @@ local Generated = if isServer
 
 export type PlayerName = string
 export type Target = Player | PlayerName | {PlayerName} | "All" | { Except: PlayerName }
-
 export type NetName = string
 export type EventName = string
+export type Connection = { Disconnect: (self: Connection) -> () }
 
 local Net = {}
 
@@ -27,14 +27,14 @@ local listeners: {[NetName]: {[EventName]: {(...any) -> ()}}} = {}
 local handlers: {[NetName]: {[EventName]: (Player, ...any) -> ...any}} = {}
 
 local function packPayload(...): buffer
-	return Dynamic.serialize(nil, nil, ...)
+	return Dynamic.serialize(nil, 0, ...)
 end
 
 local function unpackPayload(payload: buffer?): ...any
 	if payload == nil then
 		return
 	end
-	return Dynamic.deserialize(nil, nil, payload)
+	return Dynamic.deserialize(nil, 0, payload)
 end
 
 local function dispatch(netName: string, eventName: string, ...)
@@ -51,7 +51,7 @@ local function dispatch(netName: string, eventName: string, ...)
 	end
 end
 
-function Net:On(netName: NetName, eventName: EventName, callback: (...any) -> ())
+function Net:On(netName: NetName, eventName: EventName, callback: (...any) -> ()): Connection
 	local byNet = listeners[netName]
 	if not byNet then
 		byNet = {}
@@ -66,7 +66,15 @@ function Net:On(netName: NetName, eventName: EventName, callback: (...any) -> ()
 
 	table.insert(list, callback)
 
-	return function()
+	local alive = true
+	local conn: any = {}
+
+	function conn:Disconnect()
+		if not alive then
+			return
+		end
+		alive = false
+
 		local n = listeners[netName]
 		if not n then
 			return
@@ -75,6 +83,7 @@ function Net:On(netName: NetName, eventName: EventName, callback: (...any) -> ()
 		if not l then
 			return
 		end
+
 		for i = #l, 1, -1 do
 			if l[i] == callback then
 				table.remove(l, i)
@@ -82,6 +91,8 @@ function Net:On(netName: NetName, eventName: EventName, callback: (...any) -> ()
 			end
 		end
 	end
+
+	return conn :: Connection
 end
 
 local function resolvePlayer(name: string): Player?
@@ -195,11 +206,11 @@ function Net:_Start()
 		end)
 
 		Generated.RemoteFunction.On(function(player: Player, pkt): buffer?
-			local netName = tostring(pkt.Net)
-			local eventName = tostring(pkt.Event)
+			local n = tostring(pkt.Net)
+			local e = tostring(pkt.Event)
 
-			local byNet = handlers[netName]
-			local handler = byNet and byNet[eventName]
+			local byNet = handlers[n]
+			local handler = byNet and byNet[e]
 			if not handler then
 				return nil
 			end
@@ -209,7 +220,7 @@ function Net:_Start()
 			end)
 
 			if not ok then
-				warn(`[Struktura.Net] Handler error for {netName}.{eventName}: {tostring(results)}`)
+				warn(`[Struktura.Net] Handler error for {n}.{e}: {tostring(results)}`)
 				return nil
 			end
 

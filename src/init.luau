@@ -12,9 +12,9 @@ local Net = require(script:WaitForChild("Net")) :: any
 
 local Struktura = {}
 
-export type Disconnect = () -> ()
 export type ClientMeta = { Signals: {string}, Methods: {string} }
-export type ClientSignal = { Connect: (self: ClientSignal, callback: (...any) -> ()) -> Disconnect }
+export type Connection = { Disconnect: (self: Connection) -> () }
+export type ClientSignal = { Connect: (self: ClientSignal, callback: (...any) -> ()) -> Connection }
 export type ServerSignal = {
 	Fire: (self: ServerSignal, target: Player | string | {string} | "All" | { Except: string } | nil, ...any) -> (),
 	FireAll: (self: ServerSignal, ...any) -> (),
@@ -22,9 +22,9 @@ export type ServerSignal = {
 	FireExcept: (self: ServerSignal, except: string, ...any) -> (),
 }
 export type ServiceProxy = { [string]: any }
+export type Settings = { ServicePromises: boolean? }
 
 type Success = boolean
-type Settings = { ServicePromises: boolean? }
 
 local isServer = RunService:IsServer()
 local isStudio = RunService:IsStudio()
@@ -32,8 +32,8 @@ local isStudio = RunService:IsStudio()
 local cleaner = Trove.new()
 
 local started = false
-local netStarted = false
 local starting = false
+local netStarted = false
 
 local signalFlag = newproxy(false)
 
@@ -41,6 +41,7 @@ local controllers: {[string]: any} = {}
 local controllerCache: {[string]: any} = {}
 local serviceCache: {[string]: ServiceProxy} = {}
 local modules: {[string]: any} = {}
+
 local boundLifecycles: {[string]: boolean} = {}
 
 local bindToCloseSignal = if isServer then LemonSignal.new() else nil
@@ -116,10 +117,12 @@ local function toPromise(value: any)
 end
 
 local function bindLifecycle(name: string, signal: any)
-	if not signal or boundLifecycles[name] then
+	if not signal then
 		return
 	end
-	
+	if boundLifecycles[name] then
+		return
+	end
 	boundLifecycles[name] = true
 
 	local ok, conn = pcall(function()
@@ -193,15 +196,11 @@ local function setupClientSurface()
 end
 
 local function onCharacterAdded(player: Player, character: Model)
-	if characterAddedSignal then
-		characterAddedSignal:Fire(player, character)
-	end
+	characterAddedSignal:Fire(player, character)
 end
 
 local function onPlayerAdded(player: Player)
-	if playerAddedSignal then
-		playerAddedSignal:Fire(player)
-	end
+	playerAddedSignal:Fire(player)
 
 	local key = player.Name
 	local existing = playerCharConn[key]
@@ -220,9 +219,7 @@ local function onPlayerAdded(player: Player)
 end
 
 local function onPlayerRemoving(player: Player)
-	if playerRemovingSignal then
-		playerRemovingSignal:Fire(player)
-	end
+	playerRemovingSignal:Fire(player)
 
 	local key = player.Name
 	local conn = playerCharConn[key]
@@ -247,7 +244,6 @@ function Struktura.CreateLifecycle(name: string, signal: any)
 	end
 
 	customEvents[name] = signal
-
 	if started or starting then
 		bindLifecycle(name, signal)
 	end
@@ -395,11 +391,9 @@ function Struktura.Start()
 	end
 
 	cleaner:Connect(Players.PlayerAdded, onPlayerAdded)
-	
 	for _, player in ipairs(Players:GetPlayers()) do
 		task.spawn(onPlayerAdded, player)
 	end
-
 	cleaner:Connect(Players.PlayerRemoving, onPlayerRemoving)
 
 	if isServer then
@@ -428,23 +422,29 @@ function Struktura.Start()
 				setupClientSurface()
 			end
 
-			local startPromises = {}
-			for _, module in pairs(set) do
-				local startFn = module.Start
-				if typeof(startFn) == "function" then
-					table.insert(startPromises, Promise.try(startFn, module):andThen(toPromise))
-				end
-			end
-			return Promise.all(startPromises)
-		end)
-		:andThen(function()
 			started = true
 			starting = false
-			
 			if isServer then
 				script:SetAttribute("ServerReady", true)
 			end
-			return `[Struktura] Started in: {os.clock() - startClock} s`
+
+			local msg = `[Struktura] Started in: {os.clock() - startClock} s`
+
+			task.spawn(function()
+				local startPromises = {}
+				for _, module in pairs(set) do
+					local startFn = module.Start
+					if typeof(startFn) == "function" then
+						table.insert(startPromises, Promise.try(startFn, module):andThen(toPromise))
+					end
+				end
+
+				Promise.all(startPromises):catch(function(err: any)
+					warn("[Struktura] Module Start error:", err)
+				end)
+			end)
+
+			return msg
 		end)
 end
 
