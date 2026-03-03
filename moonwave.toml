@@ -1,0 +1,14 @@
+title = "Struktura"
+gitRepoUrl = "https://github.com/darkestdev/Struktura"
+gitSourceBranch = "main"
+classOrder = ["Struktura"]
+
+[docusaurus]
+organizationName = "darkestdev"
+projectName = "Struktura"
+url = "https://darkestdev.github.io"
+baseUrl = "/Struktura/"
+
+tagline = "A lightweight services/controllers framework for Roblox"
+onBrokenLinks = "throw"
+onBrokenMarkdownLinks = "warn"
