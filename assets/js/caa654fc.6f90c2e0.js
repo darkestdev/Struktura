@@ -1,1 +1,0 @@
-"use strict";(self.webpackChunkdocs=self.webpackChunkdocs||[]).push([[828],{4410:s=>{s.exports=JSON.parse('{"sourceUrl":"https://github.com/darkestdev/Struktura/blob/master","baseUrl":"/Struktura/","classOrder":[],"apiCategories":[]}')}}]);
